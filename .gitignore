@@ -1,0 +1,43 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Virtual Environments
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Downloaded files & local data
+downloads/*
+!downloads/.gitkeep
+config.json
+history.json
+
+# Media files (in case saved outside downloads folder)
+*.mp4
+*.mp3
+*.webm
+*.m4a
+*.mkv
+*.part
+*.ytdl
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# OS Generated files
+Thumbs.db
+desktop.ini
+.DS_Store
