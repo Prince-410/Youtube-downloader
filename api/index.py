@@ -8,14 +8,12 @@ directly from YouTube's CDN via the returned stream URLs.
 
 import math
 import re
-from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import yt_dlp
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 app = FastAPI(title="YouTube Downloader API", version="1.0.0")
 
@@ -26,9 +24,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-PUBLIC_DIR = Path(__file__).parent.parent / "public"
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -114,19 +109,6 @@ async def get_video_info(
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "service": "YouTube Downloader API"}
-
-
-@app.get("/", response_class=HTMLResponse)
-async def serve_index():
-    index_file = PUBLIC_DIR / "index.html"
-    if index_file.exists():
-        return FileResponse(index_file)
-    return HTMLResponse("<h1>YouTube Downloader Web App</h1>")
-
-
-if PUBLIC_DIR.exists():
-    app.mount("/", StaticFiles(directory=str(PUBLIC_DIR), html=True), name="static")
-
 
 
 # ---------------------------------------------------------------------------
