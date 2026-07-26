@@ -132,7 +132,9 @@ class YoutubeDownloader:
                 }
             )
         else:  # Video
-            if quality == "Highest Available":
+            if quality == "Single Pass (Fastest)":
+                opts["format"] = "best[ext=mp4]/best"
+            elif quality == "Highest Available":
                 opts["format"] = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best"
             elif quality == "1080p":
                 opts["format"] = "bestvideo[height<=1080][ext=mp4]+bestaudio/best[height<=1080]"

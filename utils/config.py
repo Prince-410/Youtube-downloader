@@ -8,14 +8,14 @@ class ConfigManager:
     """Manages application settings and download history persistent storage."""
 
     DEFAULT_SETTINGS: Dict[str, Any] = {
-        "download_location": str(Path(__file__).parent.parent / "downloads"),
-        "preferred_video_quality": "Highest Available",
+        "download_location": str(Path.home() / "Downloads"),
+        "preferred_video_quality": "Single Pass (Fastest)",
         "preferred_audio_quality": "320kbps",
         "filename_format": "%(title)s.%(ext)s",
         "theme_mode": "Dark",
     }
 
-    QUALITY_OPTIONS = ["Highest Available", "1080p", "720p", "480p", "360p"]
+    QUALITY_OPTIONS = ["Single Pass (Fastest)", "Highest Available", "1080p", "720p", "480p", "360p"]
     AUDIO_QUALITY_OPTIONS = ["320kbps", "256kbps", "192kbps", "128kbps"]
 
     def __init__(self, base_dir: Path | None = None) -> None:
@@ -25,13 +25,21 @@ class ConfigManager:
         self.config_path = self.base_dir / "config.json"
         self.history_path = self.base_dir / "history.json"
         self._ensure_directories()
+        self.settings: Dict[str, Any] = {}
         self.settings = self.load_settings()
 
     def _ensure_directories(self) -> None:
         """Ensure necessary local folders exist."""
-        self.base_dir.mkdir(parents=True, exist_ok=True)
-        downloads = Path(self.DEFAULT_SETTINGS["download_location"])
-        downloads.mkdir(parents=True, exist_ok=True)
+        try:
+            self.base_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            print(f"Warning: Could not create base_dir '{self.base_dir}': {e}")
+
+        default_dl = Path(self.DEFAULT_SETTINGS["download_location"])
+        try:
+            default_dl.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            print(f"Warning: Could not create default download location '{default_dl}': {e}")
 
     def load_settings(self) -> Dict[str, Any]:
         """Load settings from config.json or create defaults."""
@@ -44,9 +52,21 @@ class ConfigManager:
             except Exception as e:
                 print(f"Error loading config.json: {e}")
 
-        # Ensure download path exists
-        dl_path = Path(settings.get("download_location", self.DEFAULT_SETTINGS["download_location"]))
-        dl_path.mkdir(parents=True, exist_ok=True)
+        # Ensure download path exists, fallback if drive/path is invalid or inaccessible
+        dl_path_str = settings.get("download_location", self.DEFAULT_SETTINGS["download_location"])
+        try:
+            dl_path = Path(dl_path_str)
+            dl_path.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            print(f"Error accessing download location '{dl_path_str}': {e}. Falling back to default.")
+            fallback_dl = Path(self.DEFAULT_SETTINGS["download_location"])
+            try:
+                fallback_dl.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+            settings["download_location"] = str(fallback_dl)
+            self.save_settings(settings)
+
         return settings
 
     def save_settings(self, new_settings: Dict[str, Any] | None = None) -> None:
