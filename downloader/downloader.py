@@ -1,4 +1,5 @@
 import os
+import shutil
 import threading
 import time
 from dataclasses import dataclass
@@ -11,6 +12,62 @@ from downloader.progress import CancelledException, DownloadProgress, DownloadSt
 from utils.config import ConfigManager
 from utils.helpers import sanitize_filename
 from utils.validators import is_youtube_playlist
+
+
+def _find_deno() -> Optional[str]:
+    """Find deno executable path."""
+    deno = shutil.which("deno")
+    if deno:
+        return deno
+    local = os.environ.get("LOCALAPPDATA", "")
+    if local:
+        for root, dirs, files in os.walk(os.path.join(local, "Microsoft", "WinGet", "Packages")):
+            if "deno.exe" in files:
+                return os.path.join(root, "deno.exe")
+    return None
+
+
+def _find_ffmpeg() -> Optional[str]:
+    """Find ffmpeg executable path."""
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg:
+        return ffmpeg
+    for candidate in [
+        r"C:\ffmpeg\bin\ffmpeg.exe",
+        r"C:\tools\ffmpeg\bin\ffmpeg.exe",
+    ]:
+        if os.path.isfile(candidate):
+            return candidate
+    winget_dirs = [
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WinGet", "Packages"),
+        os.path.join(os.environ.get("PROGRAMFILES", ""), "ffmpeg", "bin"),
+    ]
+    for base in winget_dirs:
+        if not base or not os.path.isdir(base):
+            continue
+        for root, dirs, files in os.walk(base):
+            if "ffmpeg.exe" in files:
+                return os.path.join(root, "ffmpeg.exe")
+    return None
+
+
+def _base_ydl_opts() -> Dict[str, Any]:
+    """Return common yt-dlp options including JS runtime config."""
+    opts: Dict[str, Any] = {
+        "quiet": True,
+        "no_warnings": True,
+        "nocheckcertificate": True,
+        "ignoreerrors": True,
+        "remote_components": {"ejs:github"},
+        "merge_output_format": "mp4",
+    }
+    deno_path = _find_deno()
+    if deno_path:
+        opts["js_runtimes"] = {"deno": {"path": deno_path}}
+    ffmpeg_path = _find_ffmpeg()
+    if ffmpeg_path:
+        opts["ffmpeg_location"] = os.path.dirname(ffmpeg_path)
+    return opts
 
 
 @dataclass
@@ -42,8 +99,7 @@ class YoutubeDownloader:
         is_playlist = is_youtube_playlist(url)
 
         ydl_opts = {
-            "quiet": True,
-            "no_warnings": True,
+            **_base_ydl_opts(),
             "skip_download": True,
             "extract_flat": "in_playlist" if is_playlist else False,
         }
@@ -110,12 +166,7 @@ class YoutubeDownloader:
 
     def build_format_string(self, format_type: str, quality: str) -> Dict[str, Any]:
         """Build yt-dlp option dict based on user format and quality choices."""
-        opts: Dict[str, Any] = {
-            "quiet": True,
-            "no_warnings": True,
-            "nocheckcertificate": True,
-            "ignoreerrors": True,
-        }
+        opts: Dict[str, Any] = _base_ydl_opts()
 
         if format_type.lower() == "audio":
             audio_bitrate = quality.replace("kbps", "").strip() if "kbps" in quality else "320"
@@ -135,17 +186,17 @@ class YoutubeDownloader:
             if quality == "Single Pass (Fastest)":
                 opts["format"] = "best[ext=mp4]/best"
             elif quality == "Highest Available":
-                opts["format"] = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best"
+                opts["format"] = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/bestvideo+bestaudio/best"
             elif quality == "1080p":
-                opts["format"] = "bestvideo[height<=1080][ext=mp4]+bestaudio/best[height<=1080]"
+                opts["format"] = "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best[height<=1080]"
             elif quality == "720p":
-                opts["format"] = "bestvideo[height<=720][ext=mp4]+bestaudio/best[height<=720]"
+                opts["format"] = "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]"
             elif quality == "480p":
-                opts["format"] = "bestvideo[height<=480][ext=mp4]+bestaudio/best[height<=480]"
+                opts["format"] = "bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best[height<=480]"
             elif quality == "360p":
-                opts["format"] = "bestvideo[height<=360][ext=mp4]+bestaudio/best[height<=360]"
+                opts["format"] = "bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4]/best[height<=360]"
             else:
-                opts["format"] = "bestvideo+bestaudio/best"
+                opts["format"] = "best[ext=mp4]/best"
 
         return opts
 

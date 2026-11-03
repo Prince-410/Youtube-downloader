@@ -21,7 +21,7 @@ class MainWindow(ctk.CTk):
 
         # Window properties
         self.title("YouTube Downloader")
-        self.geometry("1020x700")
+        self.geometry("1020x700+100+100")
         self.minsize(880, 580)
 
         self.grid_rowconfigure(0, weight=1)
